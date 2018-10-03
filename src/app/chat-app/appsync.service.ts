@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import AWSAppSyncClient from 'aws-appsync';
-import appSyncConfig from '../../AppSync.js';
+import appSyncConfig from '../../aws-exports';
 import { AUTH_TYPE } from 'aws-appsync/lib/link/auth-link';
 import { Auth } from 'aws-amplify';
 

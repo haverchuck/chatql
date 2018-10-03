@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewEncapsulation } from '@angular/core';
-import { AuthenticatorComponent } from 'aws-amplify-angular';
+import { AmplifyAngularModule } from 'aws-amplify-angular';
 
 @Component({
   selector: 'app-home',
