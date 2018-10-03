@@ -7,7 +7,6 @@
    - [Prerequisites](#prerequisites)
    - [Backend setup](#backend-setup)
    - [Application Walkthrough](#application-walkthrough)
-   - [AWS Pinpoint Analytics](#aws-pinpoint-analytics)
  - [Building, Deploying and Publishing](#building-deploying-and-publishing)
  - [Clean Up](#clean-up)
 
