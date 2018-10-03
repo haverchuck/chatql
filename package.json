@@ -10,11 +10,11 @@
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e",
-    "ngsw-config": "node_modules/.bin/ngsw-config dist src/ngsw-config.json",
+    "ngsw-config": "ngsw-config dist src/ngsw-config.json",
     "ngsw-copy": "cp node_modules/@angular/service-worker/ngsw-worker.js dist/",
     "build-prod-ngsw": "ng build && npm run ngsw-config && npm run ngsw-copy",
     "serve-prod-ngsw": "npm run build-prod-ngsw && http-server dist -p 4200",
-    "deploy-backend": "./node_modules/.bin/sls deploy -v"
+    "deploy-backend": "sls deploy -v"
   },
   "keywords": [
     "aws",
