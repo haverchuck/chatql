@@ -1,0 +1,237 @@
+service                           : aws-mobile-chatql
+
+plugins:
+  - serverless-cf-vars
+  - serverless-appsync-plugin
+  - aws-amplify-serverless-plugin
+
+provider:
+  name                            : aws
+  runtime                         : nodejs8.10
+  apiname                         : ${opt:apiname, 'chatql-dev'}
+
+custom:
+  accountId                       : { Ref: AWS::AccountId }
+
+  amplify:
+    - filename                    : src/aws-exports.js
+      type                        : javascript
+      appClient                   : WebAppClient
+
+  appSync:
+    name                          : ${self:provider.apiname}
+    region                        : ${self:provider.region}
+    authenticationType            : AMAZON_COGNITO_USER_POOLS
+    userPoolConfig:
+      awsRegion                   : { Ref: AWS::Region }
+      defaultAction               : ALLOW
+      userPoolId                  : { Ref: UserPool }
+    schema                        : backend/schema.graphql
+    serviceRole                   : AppSyncServiceRole
+    dataSources:
+      - type                      : AMAZON_DYNAMODB
+        name                      : conversationsTableDataSource
+        config:
+          tableName               : { Ref: ConversationsTable }
+          serviceRoleArn          : { Fn::GetAtt: [ DynamoDBRole, Arn ] }
+      - type                      : AMAZON_DYNAMODB
+        name                      : messagesTableDataSource
+        config:
+          tableName               : { Ref: MessagesTable }
+          serviceRoleArn          : { Fn::GetAtt: [ DynamoDBRole, Arn ] }
+      - type                      : AMAZON_DYNAMODB
+        name                      : userConversationsTableDataSource
+        config:
+          tableName               : { Ref: UserConversationsTable }
+          serviceRoleArn          : { Fn::GetAtt: [ DynamoDBRole, Arn ] }
+      - type                      : AMAZON_DYNAMODB
+        name                      : usersTableDataSource
+        config:
+          tableName               : { Ref: UsersTable }
+          serviceRoleArn          : { Fn::GetAtt: [ DynamoDBRole, Arn ] }
+    mappingTemplatesLocation      : backend/mapping-templates
+    mappingTemplates:
+      - dataSource                : conversationsTableDataSource
+        type                      : Mutation
+        field                     : createConversation
+        request                   : createConversation-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : messagesTableDataSource
+        type                      : Mutation
+        field                     : createMessage
+        request                   : createMessage-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : userConversationsTableDataSource
+        type                      : Mutation
+        field                     : createUserConversations
+        request                   : createUserConversations-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : usersTableDataSource
+        type                      : Mutation
+        field                     : createUser
+        request                   : createUser-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : conversationsTableDataSource
+        type                      : UserConversations
+        field                     : conversation
+        request                   : conversation-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : usersTableDataSource
+        type                      : Query
+        field                     : me
+        request                   : me-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : messagesTableDataSource
+        type                      : Query
+        field                     : allMessageConnection
+        request                   : allMessageConnection-request.vtl
+        response                  : allMessageConnection-response.vtl
+      - dataSource                : userConversationsTableDataSource
+        type                      : UserConversations
+        field                     : associated
+        request                   : associated-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : messagesTableDataSource
+        type                      : User
+        field                     : messages
+        request                   : messages-request.vtl
+        response                  : messages-response.vtl
+      - dataSource                : userConversationsTableDataSource
+        type                      : User
+        field                     : conversations
+        request                   : conversations-request.vtl
+        response                  : conversations-response.vtl
+      - dataSource                : usersTableDataSource
+        type                      : Query
+        field                     : allUser
+        request                   : allUser-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : messagesTableDataSource
+        type                      : Query
+        field                     : allMessage
+        request                   : allMessage-request.vtl
+        response                  : standard-response.vtl
+      - dataSource                : messagesTableDataSource
+        type                      : Query
+        field                     : allMessageFrom
+        request                   : allMessageFrom-request.vtl
+        response                  : standard-response.vtl
+
+resources:
+  Resources:
+    # Amazon Cognito User Pool
+    UserPool:
+      Type                        : AWS::Cognito::UserPool
+      Properties:
+        UserPoolName              : ${self:provider.apiname}-userpool
+
+    # Amazon Cognito User Pool AppClient
+    WebAppClient:
+      Type                        : AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName                : ${self:provider.apiname}-appsync-client
+        GenerateSecret            : false
+        UserPoolId                : { Ref: UserPool }
+
+    # DynamoDB Tables
+    ConversationsTable:
+      Type                        : AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName         : id
+            AttributeType         : S
+        KeySchema:
+          - AttributeName         : id
+            KeyType               : HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits       : 5
+          WriteCapacityUnits      : 5
+
+    MessagesTable:
+      Type                        : AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName         : conversationId
+            AttributeType         : S
+          - AttributeName         : createdAt
+            AttributeType         : S
+        KeySchema:
+          - AttributeName         : conversationId
+            KeyType               : HASH
+          - AttributeName         : createdAt
+            KeyType               : RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits       : 5
+          WriteCapacityUnits      : 5
+
+    UserConversationsTable:
+      Type                        : AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName         : userId
+            AttributeType         : S
+          - AttributeName         : conversationId
+            AttributeType         : S
+        KeySchema:
+          - AttributeName         : userId
+            KeyType               : HASH
+          - AttributeName         : conversationId
+            KeyType               : RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits       : 5
+          WriteCapacityUnits      : 5
+        GlobalSecondaryIndexes:
+          - IndexName             : conversationId-index
+            KeySchema:
+              - AttributeName     : conversationId
+                KeyType           : HASH
+            Projection:
+              ProjectionType      : ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits   : 5
+              WriteCapacityUnits  : 5
+
+    UsersTable:
+      Type                        : AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName         : cognitoId
+            AttributeType         : S
+        KeySchema:
+          - AttributeName         : cognitoId
+            KeyType               : HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits       : 5
+          WriteCapacityUnits      : 5
+
+    # IAM Policy to allow working with DynamoDB
+    AppSyncDynamoDBPolicy:
+      Type                        : AWS::IAM::ManagedPolicy
+      Properties:
+        Path                      : /appsync/
+        PolicyDocument:
+          Version                 : "2012-10-17"
+          Statement:
+            - Effect              : Allow
+              Action              : dynamodb:*
+              Resource:
+                - { Fn::GetAtt: [ ConversationsTable, Arn ] }
+                - { Fn::GetAtt: [ MessagesTable, Arn ] }
+                - { Fn::GetAtt: [ UserConversationsTable, Arn ] }
+                - { Fn::GetAtt: [ UsersTable, Arn ] }
+                - { Fn::Sub: [ "#{arn}/index/conversationId-index", { "arn": { Fn::GetAtt: [ UserConversationsTable, Arn ] } } ] }
+
+    DynamoDBRole:
+      Type                        : AWS::IAM::Role
+      DependsOn                   : AppSyncDynamoDBPolicy
+      Properties:
+        RoleName                  : ${self:provider.apiname}-appsync-dynamodb-role
+        ManagedPolicyArns:
+          - Ref                   : AppSyncDynamoDBPolicy
+        AssumeRolePolicyDocument:
+          Version                 : "2012-10-17"
+          Statement:
+            - Effect              : Allow
+              Action              : sts:AssumeRole
+              Principal:
+                Service           : appsync.amazonaws.com
